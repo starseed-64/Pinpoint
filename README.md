@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="_Logos/Logo_Pinbox_white.png">
+    <img src="_Logos/Logo_Pinbox_dark.png" alt="Pinbox" width="360">
+  </picture>
+</p>
+
 # Pinpoint
 
 Pinpoint is a standalone Firefox extension, local Pinbox inbox, and Copilot skill for selecting a web page element and handing its requested fix to a coding agent. Page content and reports stay on your machine.
