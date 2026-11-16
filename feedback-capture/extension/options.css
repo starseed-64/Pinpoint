@@ -1,0 +1,48 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f5f5f7;
+  --surface: #fff;
+  --line: #d2d2d7;
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --accent: #ff4f68;
+  --accent-hover: #e9435b;
+  --focus: #007aff;
+}
+
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; padding: 40px 24px; color: var(--text); background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+.settings { width: min(100%, 720px); margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.brand img { width: min(230px, 42vw); height: auto; display: block; }
+.eyebrow { margin: 0 0 4px; color: var(--muted); font-size: 11px; font-weight: 600; }
+h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: 0; }
+.inbox-access-setting, .shortcut-setting, .inbox-setting { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.inbox-access-setting p, .inbox-setting p, .shortcut-copy > p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.shortcut-copy { min-width: 0; }
+.shortcut-defaults { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 11px; color: var(--muted); font-size: 12px; }
+kbd { display: inline-block; padding: 3px 6px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.shortcut-message { min-height: 1em; }
+.settings-action, .shortcut-action, .open-inbox { min-height: 44px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border-radius: 12px; font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-decoration: none; cursor: pointer; }
+.settings-action, .shortcut-action { color: var(--text); background: var(--surface); border: 1px solid var(--line); }
+.settings-action:hover:not(:disabled), .shortcut-action:hover { background: color-mix(in srgb, var(--surface) 88%, var(--line)); }
+.settings-action:disabled { opacity: .6; cursor: default; }
+.open-inbox { color: #fff; background: var(--accent); border: 1px solid var(--accent); }
+.open-inbox:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.settings-action:focus-visible, .shortcut-action:focus-visible, .open-inbox:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 42%, transparent); outline-offset: 2px; }
+.hint { margin: 16px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.hint code { color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111113; --surface: #1c1c1e; --line: #38383b; --text: #f5f5f7; --muted: #a1a1a6; --accent: #ff526d; --accent-hover: #ff687d; --focus: #0a84ff; }
+}
+
+@media (max-width: 560px) {
+  body { padding: 24px 18px; }
+  .inbox-access-setting, .shortcut-setting, .inbox-setting { align-items: stretch; flex-direction: column; gap: 12px; }
+  .settings-action, .shortcut-action, .open-inbox { align-self: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}

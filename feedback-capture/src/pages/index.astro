@@ -1,0 +1,321 @@
+---
+import lightLogo from "../assets/pinbox-logo-light.png";
+import darkLogo from "../assets/pinbox-logo-dark.png";
+
+const title = "Pinbox";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <div class="brandline">
+          <picture>
+            <source srcset={darkLogo.src} media="(prefers-color-scheme: dark)" />
+            <img class="brand-logo" src={lightLogo.src} alt="Pinbox" />
+          </picture>
+        </div>
+      </header>
+
+      <section class="inbox" aria-labelledby="page-title">
+        <div class="section-heading">
+          <h1 id="page-title">Pinbox</h1>
+          <span class="count" id="item-count">0 Fixes</span>
+        </div>
+        <p id="queue-status" role="status" aria-live="polite"></p>
+        <div class="feedback-list" id="feedback-list" aria-live="polite"></div>
+        <div class="bottom-actions">
+          <button class="clear-inbox" id="clear-inbox" type="button" hidden>Clear Pinbox</button>
+          <button class="handoff" id="copy-brief" type="button" disabled>Fix Everything</button>
+        </div>
+      </section>
+
+      <footer>Fixes are stored locally in <code>Pinbox/</code></footer>
+    </main>
+    <dialog class="confirm-dialog" id="clear-dialog" aria-labelledby="clear-title">
+      <div class="confirm-content">
+        <h2 id="clear-title">Clear all fixes?</h2>
+        <p id="clear-details"></p>
+        <div class="confirm-actions">
+          <button class="keep-fixes" id="keep-fixes" type="button">Keep Fixes</button>
+          <button class="delete-fixes" id="confirm-clear" type="button">Delete All Fixes</button>
+        </div>
+      </div>
+    </dialog>
+  </body>
+</html>
+
+<script>
+  const list = document.getElementById("feedback-list");
+  const status = document.getElementById("queue-status");
+  const count = document.getElementById("item-count");
+  const copyButton = document.querySelector<HTMLButtonElement>("#copy-brief");
+  const clearButton = document.querySelector<HTMLButtonElement>("#clear-inbox");
+  const clearDialog = document.getElementById("clear-dialog");
+  const clearDetails = document.getElementById("clear-details");
+  const keepFixesButton = document.getElementById("keep-fixes");
+  const confirmClearButton = document.getElementById("confirm-clear");
+  type FeedbackItem = { name: string; content: string };
+  let items: FeedbackItem[] = [];
+  let handoffCopied = false;
+  let loading: Promise<void> | undefined;
+
+  function render() {
+    if (!list || !count || !copyButton || !clearButton) return;
+    list.replaceChildren();
+    count.textContent = `${items.length} ${items.length === 1 ? "Fix" : "Fixes"}`;
+    copyButton.disabled = items.length === 0;
+    clearButton.hidden = !handoffCopied || items.length === 0;
+
+    if (items.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.innerHTML = '<span class="empty-mark" aria-hidden="true">＋</span><p>No fixes yet</p><span>Use Pinpoint to select an element and describe the fix.</span>';
+      list.append(empty);
+      return;
+    }
+
+    for (const item of items) {
+      const card = document.createElement("article");
+      card.className = "feedback-item";
+      const heading = document.createElement("div");
+      heading.className = "item-heading";
+      const filename = document.createElement("code");
+      filename.textContent = item.name;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "remove-item";
+      remove.textContent = "Remove";
+      remove.setAttribute("aria-label", `Remove ${item.name}`);
+      remove.addEventListener("click", async () => {
+        remove.disabled = true;
+        try {
+          const response = await fetch(`/api/feedback?name=${encodeURIComponent(item.name)}`, { method: "DELETE" });
+          if (!response.ok) throw new Error("Could not remove the report. Refresh Pinbox and try again.");
+          await reload();
+          if (status) status.textContent = "Fix removed.";
+        } catch (error) {
+          if (status) status.textContent = error instanceof Error ? error.message : "Could not reach Pinbox.";
+        } finally {
+          remove.disabled = false;
+        }
+      });
+      heading.append(filename, remove);
+      const details = document.createElement("pre");
+      const lines = item.content.split(/\r?\n/);
+      while (lines.at(-1) === "") lines.pop();
+      lines.forEach((line, index) => {
+        const label = line.match(/^\*{0,2}(Target|Fix):\*{0,2}(.*)$/);
+        if (label) {
+          const strong = document.createElement("strong");
+          strong.textContent = `${label[1]}:`;
+          if (label[1] === "Fix") {
+            const fixDetail = document.createElement("span");
+            fixDetail.className = "fix-detail";
+            fixDetail.append(strong, document.createTextNode(label[2]));
+            details.append(fixDetail);
+          } else {
+            details.append(strong, document.createTextNode(label[2]));
+          }
+        } else {
+          details.append(document.createTextNode(line));
+        }
+        if (index < lines.length - 1) details.append(document.createTextNode("\n"));
+      });
+      card.append(heading, details);
+      list.append(card);
+    }
+  }
+
+  function load(): Promise<void> {
+    if (loading) return loading;
+    loading = (async () => {
+      try {
+        const response = await fetch("/api/feedback", { cache: "no-store" });
+        if (!response.ok) throw new Error("Pinbox unavailable");
+        const result: unknown = await response.json();
+        if (!result || typeof result !== "object" || !("items" in result) || !Array.isArray(result.items)
+          || !result.items.every((item): item is FeedbackItem => item && typeof item === "object"
+            && typeof item.name === "string" && typeof item.content === "string")) {
+          throw new Error("Pinbox returned an invalid report list.");
+        }
+        items = result.items;
+        render();
+      } catch (error) {
+        if (status) status.textContent = error instanceof Error ? error.message : "Could not reach Pinbox. Restart the local server and refresh.";
+        throw error;
+      } finally {
+        loading = undefined;
+      }
+    })();
+    return loading;
+  }
+
+  function refresh() {
+    load().catch((error) => console.error("Pinbox could not refresh its inbox.", error));
+  }
+
+  async function reload() {
+    if (loading) await loading;
+    await load();
+  }
+
+  copyButton?.addEventListener("click", async () => {
+    const brief = "/Pinpoint";
+
+    if (status) status.textContent = "Copying…";
+    try {
+      await navigator.clipboard.writeText(brief);
+      handoffCopied = true;
+      render();
+      if (status) status.textContent = `${brief} command copied. Paste it into your AI Agent chat to process all ${items.length === 1 ? "fix" : "fixes"} in Pinbox.`;
+    } catch {
+      if (status) status.textContent = "Clipboard access failed. Copy /Pinpoint and paste it into your AI Agent chat.";
+    }
+  });
+
+  clearButton?.addEventListener("click", () => {
+    if (!clearDialog || !clearDetails || items.length === 0) return;
+    clearDetails.textContent = `This permanently deletes ${items.length} saved ${items.length === 1 ? "fix" : "fixes"} from Pinbox. The copied prompt points the agent to these files, so clear them after the agent has finished using them.`;
+    if (clearDialog instanceof HTMLDialogElement) clearDialog.showModal();
+  });
+
+  keepFixesButton?.addEventListener("click", () => {
+    if (clearDialog instanceof HTMLDialogElement) clearDialog.close();
+  });
+
+  confirmClearButton?.addEventListener("click", async () => {
+    if (!(confirmClearButton instanceof HTMLButtonElement) || !(clearDialog instanceof HTMLDialogElement)) return;
+    confirmClearButton.disabled = true;
+    if (status) status.textContent = "Clearing Pinbox…";
+    try {
+      const response = await fetch("/api/feedback?all=1", { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Could not clear Pinbox.");
+      items = [];
+      handoffCopied = false;
+      render();
+      clearDialog.close();
+      if (status) status.textContent = `Pinbox cleared. ${result.deleted} ${result.deleted === 1 ? "fix" : "fixes"} deleted.`;
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "Could not clear Pinbox.";
+    } finally {
+      confirmClearButton.disabled = false;
+    }
+  });
+
+  window.addEventListener("focus", refresh);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refresh();
+  });
+  refresh();
+</script>
+
+<style>
+  :global(:root) {
+    color-scheme: light dark;
+    --bg: #f5f5f7;
+    --surface: #fff;
+    --surface-raised: #fafafd;
+    --line: #dedee3;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --blue: #007aff;
+    --accent: #ff4f68;
+    --accent-hover: #e9435b;
+    --danger: #d93245;
+    --success: #20834b;
+  }
+  :global(*) { box-sizing: border-box; }
+  :global(body) {
+    min-width: 320px;
+    margin: 0;
+    color: var(--text);
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  :global(button) { font: inherit; }
+  .shell { max-width: 1060px; min-height: 100vh; margin: 0 auto; padding: 0 42px 112px; display: flex; flex-direction: column; }
+  .masthead { position: relative; margin: 0 -42px; padding: 24px 42px 26px; color: var(--text); background: var(--bg); }
+  .masthead::after { position: absolute; right: 42px; bottom: 0; left: 42px; height: 1px; background: var(--line); content: ""; }
+  .brandline { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .brand-logo { width: min(220px, 64vw); height: auto; display: block; }
+  h1 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: 0; line-height: 1.2; }
+  .handoff {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 12px;
+    min-height: 42px;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms ease, transform 140ms ease;
+  }
+  .handoff:disabled { opacity: .48; cursor: not-allowed; }
+  .handoff:not(:disabled):hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .handoff:focus-visible, .clear-inbox:focus-visible, .confirm-actions button:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 42%, transparent); outline-offset: 2px; }
+  .clear-inbox { min-height: 42px; padding: 0 13px; color: var(--danger); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .clear-inbox:hover { background: color-mix(in srgb, var(--surface) 85%, var(--danger)); }
+  .clear-inbox[hidden] { display: none; }
+  .confirm-dialog { width: min(460px, calc(100vw - 32px)); padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 16px 48px rgba(0, 0, 0, .2); }
+  .confirm-dialog::backdrop { background: rgba(0, 0, 0, .32); backdrop-filter: blur(3px); }
+  .confirm-content { padding: 22px; }
+  .confirm-content h2 { margin: 0; font-size: 18px; }
+  .confirm-content p { margin: 10px 0 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+  .confirm-actions { display: flex; justify-content: flex-end; gap: 9px; }
+  .confirm-actions button { min-height: 40px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .keep-fixes { color: var(--text); background: var(--surface); }
+  .keep-fixes:hover { background: color-mix(in srgb, var(--surface) 85%, var(--line)); }
+  .delete-fixes { color: #fff; background: var(--accent); border-color: var(--accent) !important; }
+  .delete-fixes:hover:not(:disabled) { background: var(--accent-hover); }
+  .delete-fixes:disabled { opacity: .6; cursor: wait; }
+  .inbox { flex: 1; padding: 22px 0 50px; }
+  .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+  #queue-status:empty { display: none; }
+  #queue-status:not(:empty) { margin: 0 0 14px; padding: 11px 14px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; font-size: 13px; font-weight: 500; }
+  .count { color: var(--muted); font-size: 14px; font-weight: 600; }
+  .feedback-list { display: grid; gap: 14px; }
+  .bottom-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+  :global(.feedback-item) { overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 2px 8px rgba(20, 20, 30, .035); }
+  :global(.item-heading) { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; background: var(--surface-raised); border-bottom: 1px solid var(--line); }
+  :global(.item-heading code) { min-width: 0; flex: 1 1 auto; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  :global(.remove-item) { flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 11px; color: var(--danger); background: transparent; border: 1px solid var(--line); border-radius: 10px; font-size: 12px; font-weight: 500; cursor: pointer; }
+  :global(.remove-item:hover) { color: var(--danger); border-color: var(--danger); }
+  :global(.feedback-item pre) { overflow: auto; max-height: 360px; margin: 0; padding: 17px; color: var(--text); font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  :global(.fix-detail) { display: block; margin-top: 0.45em; color: var(--accent); }
+  :global(.empty-state) { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; color: var(--muted); text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 2px 8px rgba(20, 20, 30, .035); }
+  :global(.empty-state p) { margin: 11px 0 4px; color: var(--text); font-size: 16px; font-weight: 600; }
+  :global(.empty-state > span:last-child) { font-size: 12px; }
+  :global(.empty-mark) { width: 38px; height: 38px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff3e73, #ff7354); border-radius: 13px; font-size: 22px; }
+  footer { margin-top: 16px; padding: 14px 16px; color: #fff; background: #1c1c1e; border-radius: 12px; font-size: 12px; }
+  footer code { color: var(--accent); }
+  @media (prefers-color-scheme: dark) {
+    :global(:root) { --bg: #111113; --surface: #1c1c1e; --surface-raised: #242426; --line: #38383b; --text: #f5f5f7; --muted: #a1a1a6; --blue: #0a84ff; --accent: #ff526d; --accent-hover: #ff687d; --danger: #ff6961; --success: #4fc47b; }
+  }
+  @media (max-width: 620px) {
+    .shell { padding: 0 20px 112px; }
+    .masthead { margin: 0 -20px; padding: 22px 20px 24px; }
+    .masthead::after { right: 20px; left: 20px; }
+    .bottom-actions { gap: 8px; }
+    .bottom-actions .handoff, .bottom-actions .clear-inbox { flex: 1 1 0; justify-content: center; }
+    h1 { font-size: 23px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(*), :global(*::before), :global(*::after) { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  }
+</style>

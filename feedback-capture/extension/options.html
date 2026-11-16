@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#080b10" />
+    <link rel="stylesheet" href="options.css" />
+    <title>Pinpoint Settings</title>
+  </head>
+  <body>
+    <main class="settings">
+      <header class="brand">
+        <picture>
+          <source srcset="pinpoint-logo-dark.png" media="(prefers-color-scheme: dark)" />
+          <img src="pinpoint-logo-light.png" alt="Pinpoint" />
+        </picture>
+        <div>
+          <p class="eyebrow">PINPOINT</p>
+          <h1>Settings</h1>
+        </div>
+      </header>
+
+      <section class="inbox-access-setting" aria-labelledby="inbox-access-title">
+        <div>
+          <h2 id="inbox-access-title">Pinbox access</h2>
+          <p id="inbox-access-status" role="status" aria-live="polite">Checking access…</p>
+        </div>
+        <button id="grant-inbox-access" class="settings-action" type="button">Grant Pinbox Access</button>
+      </section>
+
+      <section class="shortcut-setting" aria-labelledby="shortcut-title">
+        <div class="shortcut-copy">
+          <h2 id="shortcut-title">Element selection shortcut</h2>
+          <p>Current shortcut: <kbd id="current-shortcut">Loading…</kbd></p>
+          <div class="shortcut-defaults">
+            <span>Mac default <kbd>Option + Shift + P</kbd></span>
+            <span>Windows default <kbd>Alt + Shift + P</kbd></span>
+          </div>
+          <p id="shortcut-message" class="shortcut-message" role="status" aria-live="polite"></p>
+        </div>
+        <button id="change-shortcut" class="shortcut-action" type="button">Change shortcut</button>
+      </section>
+
+      <section class="inbox-setting" aria-labelledby="inbox-title">
+        <div>
+          <h2 id="inbox-title">Pinbox</h2>
+          <p>Review locally saved reports and send the batch to your coding agent.</p>
+        </div>
+        <a class="open-inbox" href="http://127.0.0.1:4321/" target="_blank" rel="noopener noreferrer">
+          Open Pinbox <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+
+      <p class="hint">Start Pinpoint.command if Pinbox is not running. Reports stay on this computer in <code>Pinbox/</code>.</p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.astro/
+Pinbox/
+feedback-capture/artifacts/
+.DS_Store
