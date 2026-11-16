@@ -5,8 +5,6 @@
   </picture>
 </p>
 
-# Pinpoint
-
 Pinpoint is a standalone Firefox extension, local Pinbox inbox, and Copilot skill for selecting a web page element and handing its requested fix to a coding agent. Page content and reports stay on your machine.
 
 ## Requirements
