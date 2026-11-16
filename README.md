@@ -65,3 +65,12 @@ Copy `Pinpoint.command` and the `feedback-capture/` folder into the target proje
 Bug reports are written to `Pinbox/` in the folder containing `Pinpoint.command`. Add `/Pinbox/` to the project's `.gitignore` if reports should remain local. The `/pinpoint` skill handles the `/Pinpoint` handoff command copied from the inbox and processes those notes with explicit per-note choices.
 
 The extension sends reports only to the local inbox at `127.0.0.1:4321`; it does not connect to a remote service or submit work into a Copilot conversation. Use **Fix Everything** in Pinbox to copy `/Pinpoint`, then paste it into the AI Agent chat.
+
+## Publishing a release
+
+Every release published on GitHub must be the Mozilla-signed XPI, with the tag matching the manifest version.
+
+1. Bump `version` in `feedback-capture/extension/manifest.json`, then run `npm --prefix feedback-capture run package:firefox`.
+2. Submit the ZIP to Mozilla for signing, save the returned XPI in `feedback-capture/artifacts/`, and run `npm --prefix feedback-capture run name:firefox`.
+3. Run `npm --prefix feedback-capture run release:prepare`. It checks the XPI is signed and matches the manifest version, commits it as `releases/Pinpoint_v<version>.xpi`, and tags `v<version>`.
+4. Run `git push origin main --follow-tags`. The Release workflow rejects a tag whose version or signature does not match, and otherwise publishes the GitHub release with the XPI attached.

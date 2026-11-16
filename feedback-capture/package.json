@@ -12,7 +12,8 @@
     "preview": "astro preview --host 127.0.0.1 --port 4321",
     "lint:firefox": "web-ext lint --source-dir extension --warnings-as-errors",
     "name:firefox": "node scripts/name-firefox-xpi.mjs",
-    "package:firefox": "node scripts/package-firefox.mjs"
+    "package:firefox": "node scripts/package-firefox.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs"
   },
   "engines": {
     "node": ">=22.23.4",
